@@ -5,460 +5,174 @@ Agent Browser - Browser automation CLI for AI agents
 Fast, Python-based browser automation using Playwright.
 """
 
-import click
 import sys
 from src.browser import BrowserAgent
 
 
-@click.group()
-@click.option('--headless/--headed', default=True, help='Run browser in headless mode')
-@click.option('--viewport', default='1280x720', help='Viewport size (e.g., 1920x1080)')
-@click.option('--device', help='Emulate device (e.g., "iPhone 14")')
-@click.pass_context
-def cli(ctx, headless, viewport, device):
-    """Agent Browser - Browser automation for AI agents
-    
-    Fast, Python-based browser automation using Playwright.
-    
-    Examples:
-    
-    \b
-        # Open a URL
-        agent-browser open https://example.com
-        
-        # Get accessibility snapshot
-        agent-browser snapshot -i
-        
-        # Click element
-        agent-browser click "#submit"
-        
-        # Fill form
-        agent-browser fill "#email" "test@example.com"
-        
-        # Take screenshot
-        agent-browser screenshot page.png
-    """
-    ctx.ensure_object(dict)
-    ctx.obj['headless'] = headless
-    ctx.obj['viewport'] = viewport
-    ctx.obj['device'] = device
-
-
-@cli.command()
-@click.argument('url')
-@click.pass_context
-def open(ctx, url):
-    """Open a URL in the browser
-    
-    URL: URL to navigate to
-    """
-    agent = BrowserAgent(headless=ctx.obj['headless'])
-    try:
-        agent.open(url)
-        click.echo(f"✓ Opened: {url}")
-    finally:
-        agent.close()
-
-
-@cli.command()
-@click.option('-i', '--interactive', is_flag=True, help='Interactive elements only')
-@click.option('-c', '--compact', is_flag=True, help='Compact output')
-@click.option('-d', '--depth', type=int, help='Limit tree depth')
-@click.option('-s', '--selector', help='Scope to CSS selector')
-@click.pass_context
-def snapshot(ctx, interactive, compact, depth, selector):
-    """Get accessibility tree snapshot
-    
-    Options:
-    
-    \b
-        -i, --interactive  Only show interactive elements
-        -c, --compact      Remove empty structural elements
-        -d, --depth        Limit tree depth
-        -s, --selector     Scope to CSS selector
-    """
-    agent = BrowserAgent(headless=ctx.obj['headless'])
-    try:
-        tree = agent.snapshot(interactive=interactive, compact=compact, depth=depth)
-        click.echo(tree)
-    finally:
-        agent.close()
-
-
-@cli.command()
-@click.argument('selector')
-@click.option('--new-tab', is_flag=True, help='Open in new tab')
-@click.pass_context
-def click(ctx, selector, new_tab):
-    """Click an element
-    
-    SELECTOR: CSS selector or element ref (e.g., @e1)
-    """
-    agent = BrowserAgent(headless=ctx.obj['headless'])
-    try:
-        agent.click(selector)
-        click.echo(f"✓ Clicked: {selector}")
-    finally:
-        agent.close()
-
-
-@cli.command()
-@click.argument('selector')
-@click.argument('text')
-@click.pass_context
-def fill(ctx, selector, text):
-    """Fill an input field
-    
-    SELECTOR: CSS selector for input field
-    
-    TEXT: Text to fill
-    """
-    agent = BrowserAgent(headless=ctx.obj['headless'])
-    try:
-        agent.fill(selector, text)
-        click.echo(f"✓ Filled: {selector}")
-    finally:
-        agent.close()
-
-
-@cli.command()
-@click.argument('selector')
-@click.argument('text')
-@click.pass_context
-def type(ctx, selector, text):
-    """Type into an element (with key events)
-    
-    SELECTOR: CSS selector for input field
-    
-    TEXT: Text to type
-    """
-    agent = BrowserAgent(headless=ctx.obj['headless'])
-    try:
-        agent.fill(selector, text)  # Using fill for now
-        click.echo(f"✓ Typed: {text} into {selector}")
-    finally:
-        agent.close()
-
-
-@cli.command()
-@click.argument('path', default='screenshot.png')
-@click.option('--full', is_flag=True, help='Full page screenshot')
-@click.option('--annotate', is_flag=True, help='Annotate with element labels')
-@click.pass_context
-def screenshot(ctx, path, full, annotate):
-    """Take a screenshot
-    
-    PATH: Output file path (default: screenshot.png)
-    
-    Options:
-    
-    \b
-        --full       Full page screenshot
-        --annotate   Annotate with element labels
-    """
-    agent = BrowserAgent(headless=ctx.obj['headless'])
-    try:
-        agent.screenshot(path, full_page=full)
-        click.echo(f"✓ Screenshot saved: {path}")
-    finally:
-        agent.close()
-
-
-@cli.command()
-@click.argument('selector')
-@click.pass_context
-def get_text(ctx, selector):
-    """Get text content of an element
-    
-    SELECTOR: CSS selector
-    """
-    agent = BrowserAgent(headless=ctx.obj['headless'])
-    try:
-        text = agent.get_text(selector)
-        click.echo(text)
-    finally:
-        agent.close()
-
-
-@cli.command()
-@click.argument('selector')
-@click.pass_context
-def get_html(ctx, selector):
-    """Get innerHTML of an element
-    
-    SELECTOR: CSS selector
-    """
-    agent = BrowserAgent(headless=ctx.obj['headless'])
-    try:
-        html = agent.get_html(selector)
-        click.echo(html)
-    finally:
-        agent.close()
-
-
-@cli.command()
-@click.pass_context
-def get_url(ctx):
-    """Get current URL"""
-    agent = BrowserAgent(headless=ctx.obj['headless'])
-    try:
-        agent._ensure_browser()
-        click.echo(agent.page.url)
-    finally:
-        agent.close()
-
-
-@cli.command()
-@click.pass_context
-def get_title(ctx):
-    """Get page title"""
-    agent = BrowserAgent(headless=ctx.obj['headless'])
-    try:
-        agent._ensure_browser()
-        click.echo(agent.page.title())
-    finally:
-        agent.close()
-
-
-@cli.command()
-@click.argument('selector')
-@click.pass_context
-def is_visible(ctx, selector):
-    """Check if element is visible
-    
-    SELECTOR: CSS selector
-    """
-    agent = BrowserAgent(headless=ctx.obj['headless'])
-    try:
-        visible = agent.is_visible(selector)
-        click.echo(f"{'✓ Visible' if visible else '✗ Hidden'}")
-    finally:
-        agent.close()
-
-
-@cli.command()
-@click.pass_context
-def close(ctx):
-    """Close the browser"""
-    agent = BrowserAgent(headless=ctx.obj['headless'])
-    agent.close()
-    click.echo("✓ Browser closed")
-
-
-@cli.command()
-@click.argument('selector', required=False)
-@click.option('--timeout', type=int, default=30000, help='Timeout in ms')
-@click.option('--state', default='visible', help='Wait state')
-@click.option('--text', help='Wait for text')
-@click.option('--url', help='Wait for URL')
-@click.option('--load', help='Wait for load state')
-@click.pass_context
-def wait(ctx, selector, timeout, state, text, url, load):
-    """Wait for element, text, URL, or network idle"""
-    agent = BrowserAgent(headless=ctx.obj['headless'])
-    try:
-        agent.wait(selector=selector, timeout=timeout, state=state, text=text, url=url, load=load)
-        click.echo("✓ Wait completed")
-    finally:
-        agent.close()
-
-
-@cli.command()
-@click.option('--role', help='ARIA role')
-@click.option('--text', help='Text content')
-@click.option('--label', help='Label text')
-@click.option('--placeholder', help='Placeholder text')
-@click.option('--testid', help='data-testid value')
-@click.option('--action', help='Action to perform')
-@click.option('--name', help='Accessible name')
-@click.option('--exact', is_flag=True, help='Exact match')
-@click.pass_context
-def find(ctx, role, text, label, placeholder, testid, action, name, exact):
-    """Find elements using semantic locators"""
-    agent = BrowserAgent(headless=ctx.obj['headless'])
-    try:
-        result = agent.find(role=role, text=text, label=label, placeholder=placeholder,
-                          testid=testid, action=action, name=name, exact=exact)
-        click.echo(f"✓ Found: {result}")
-    finally:
-        agent.close()
-
-
-@cli.command()
-@click.argument('selector')
-@click.argument('key')
-@click.pass_context
-def press(ctx, selector, key):
-    """Press a key on an element"""
-    agent = BrowserAgent(headless=ctx.obj['headless'])
-    try:
-        agent.press(selector, key)
-        click.echo(f"✓ Pressed: {key}")
-    finally:
-        agent.close()
-
-
-@cli.command()
-@click.argument('selector')
-@click.pass_context
-def hover(ctx, selector):
-    """Hover over an element"""
-    agent = BrowserAgent(headless=ctx.obj['headless'])
-    try:
-        agent.hover(selector)
-        click.echo(f"✓ Hovered: {selector}")
-    finally:
-        agent.close()
-
-
-@cli.command()
-@click.argument('selector')
-@click.pass_context
-def check(ctx, selector):
-    """Check a checkbox"""
-    agent = BrowserAgent(headless=ctx.obj['headless'])
-    try:
-        agent.check(selector)
-        click.echo(f"✓ Checked: {selector}")
-    finally:
-        agent.close()
-
-
-@cli.command()
-@click.argument('selector')
-@click.pass_context
-def uncheck(ctx, selector):
-    """Uncheck a checkbox"""
-    agent = BrowserAgent(headless=ctx.obj['headless'])
-    try:
-        agent.uncheck(selector)
-        click.echo(f"✓ Unchecked: {selector}")
-    finally:
-        agent.close()
-
-
-@cli.command()
-@click.argument('selector')
-@click.argument('value')
-@click.pass_context
-def select(ctx, selector, value):
-    """Select dropdown option"""
-    agent = BrowserAgent(headless=ctx.obj['headless'])
-    try:
-        agent.select(selector, value)
-        click.echo(f"✓ Selected: {value}")
-    finally:
-        agent.close()
-
-
-@cli.command()
-@click.argument('direction', default='down')
-@click.argument('pixels', type=int, default=100)
-@click.option('--selector', help='Element selector')
-@click.pass_context
-def scroll(ctx, direction, pixels, selector):
-    """Scroll page or element"""
-    agent = BrowserAgent(headless=ctx.obj['headless'])
-    try:
-        agent.scroll(selector=selector, direction=direction, pixels=pixels)
-        click.echo(f"✓ Scrolled {direction} {pixels}px")
-    finally:
-        agent.close()
-
-
-@cli.command()
-@click.argument('selector')
-@click.argument('files', nargs=-1)
-@click.pass_context
-def upload(ctx, selector, files):
-    """Upload files"""
-    agent = BrowserAgent(headless=ctx.obj['headless'])
-    try:
-        agent.upload(selector, list(files))
-        click.echo(f"✓ Uploaded: {len(files)} files")
-    finally:
-        agent.close()
-
-
-@cli.command()
-@click.argument('selector')
-@click.pass_context
-def get_value(ctx, selector):
-    """Get input value"""
-    agent = BrowserAgent(headless=ctx.obj['headless'])
-    try:
-        value = agent.get_value(selector)
-        click.echo(value)
-    finally:
-        agent.close()
-
-
-@cli.command()
-@click.argument('selector')
-@click.argument('attribute')
-@click.pass_context
-def get_attr(ctx, selector, attribute):
-    """Get element attribute"""
-    agent = BrowserAgent(headless=ctx.obj['headless'])
-    try:
-        attr = agent.get_attribute(selector, attribute)
-        click.echo(attr)
-    finally:
-        agent.close()
-
-
-@cli.command()
-@click.argument('selector')
-@click.pass_context
-def get_box(ctx, selector):
-    """Get element bounding box"""
-    agent = BrowserAgent(headless=ctx.obj['headless'])
-    try:
-        box = agent.get_box(selector)
-        click.echo(f"X: {box.get('x', 0)}, Y: {box.get('y', 0)}, Width: {box.get('width', 0)}, Height: {box.get('height', 0)}")
-    finally:
-        agent.close()
-
-
-@cli.command()
-@click.argument('selector')
-@click.pass_context
-def count(ctx, selector):
-    """Count matching elements"""
-    agent = BrowserAgent(headless=ctx.obj['headless'])
-    try:
-        cnt = agent.count(selector)
-        click.echo(f"Count: {cnt}")
-    finally:
-        agent.close()
-
-
-@cli.command()
-@click.argument('javascript')
-@click.pass_context
-def eval(ctx, javascript):
-    """Execute JavaScript"""
-    agent = BrowserAgent(headless=ctx.obj['headless'])
-    try:
-        result = agent.eval(javascript)
-        click.echo(result)
-    finally:
-        agent.close()
-
-
-@cli.command()
-@click.pass_context
-def install(ctx):
-    """Install Playwright browsers"""
-    click.echo("Installing Playwright browsers...")
-    import subprocess
-    result = subprocess.run([sys.executable, '-m', 'playwright', 'install'], capture_output=True, text=True)
-    if result.returncode == 0:
-        click.echo("✓ Playwright browsers installed successfully")
-    else:
-        click.echo(f"✗ Installation failed: {result.stderr}")
+def main():
+    """Main CLI entry point"""
+    if len(sys.argv) < 2:
+        print("Usage: agent-browser <command> [args]")
+        print("\nCommands:")
+        print("  open <url>              Open a URL")
+        print("  snapshot [-i] [-c] [-d] Get accessibility tree")
+        print("  click <selector>        Click element")
+        print("  fill <sel> <text>       Fill input field")
+        print("  type <sel> <text>       Type text")
+        print("  screenshot [path]       Take screenshot")
+        print("  get_text <sel>          Get text content")
+        print("  get_html <sel>          Get HTML")
+        print("  get_url                 Get current URL")
+        print("  get_title               Get page title")
+        print("  is_visible <sel>        Check visibility")
+        print("  wait [options]          Wait for element/text/url")
+        print("  find [options]          Find elements")
+        print("  press <sel> <key>       Press key")
+        print("  hover <sel>             Hover element")
+        print("  check <sel>             Check checkbox")
+        print("  uncheck <sel>           Uncheck checkbox")
+        print("  select <sel> <val>      Select option")
+        print("  scroll [dir] [px]       Scroll page")
+        print("  upload <sel> <files>    Upload files")
+        print("  get_value <sel>         Get input value")
+        print("  get_attr <sel> <attr>   Get attribute")
+        print("  get_box <sel>           Get bounding box")
+        print("  count <sel>             Count elements")
+        print("  eval <js>               Execute JavaScript")
+        print("  close                   Close browser")
+        print("  install                 Install browsers")
+        print("\nOptions:")
+        print("  --headless              Run in headless mode (default)")
+        print("  --headed                Show browser window")
+        print("  --viewport <WxH>        Set viewport size")
         sys.exit(1)
+    
+    command = sys.argv[1]
+    args = sys.argv[2:]
+    
+    # Parse global options
+    headless = True
+    viewport = "1280x720"
+    
+    i = 0
+    while i < len(args):
+        if args[i] == '--headless':
+            headless = True
+            args.pop(i)
+        elif args[i] == '--headed':
+            headless = False
+            args.pop(i)
+        elif args[i] == '--viewport':
+            viewport = args[i + 1] if i + 1 < len(args) else "1280x720"
+            args.pop(i)
+            if i < len(args) and not args[i].startswith('-'):
+                args.pop(i)
+        else:
+            i += 1
+    
+    try:
+        agent = BrowserAgent(headless=headless, viewport=viewport)
+        
+        if command == 'open':
+            if not args:
+                print("Error: open requires URL argument")
+                sys.exit(1)
+            agent.open(args[0])
+            print(f"✓ Opened: {args[0]}")
+        
+        elif command == 'snapshot':
+            interactive = '-i' in args or '--interactive' in args
+            compact = '-c' in args or '--compact' in args
+            depth = None
+            for i, arg in enumerate(args):
+                if arg == '-d' and i + 1 < len(args):
+                    depth = int(args[i + 1])
+            tree = agent.snapshot(interactive=interactive, compact=compact, depth=depth)
+            print(tree)
+        
+        elif command == 'click':
+            if not args:
+                print("Error: click requires selector argument")
+                sys.exit(1)
+            agent.click(args[0])
+            print(f"✓ Clicked: {args[0]}")
+        
+        elif command == 'fill':
+            if len(args) < 2:
+                print("Error: fill requires selector and text arguments")
+                sys.exit(1)
+            agent.fill(args[0], args[1])
+            print(f"✓ Filled: {args[0]}")
+        
+        elif command == 'type':
+            if len(args) < 2:
+                print("Error: type requires selector and text arguments")
+                sys.exit(1)
+            agent.fill(args[0], args[1])
+            print(f"✓ Typed: {args[1]} into {args[0]}")
+        
+        elif command == 'screenshot':
+            path = args[0] if args else 'screenshot.png'
+            full = '--full' in args
+            agent.screenshot(path, full_page=full)
+            print(f"✓ Screenshot saved: {path}")
+        
+        elif command == 'get_text':
+            if not args:
+                print("Error: get_text requires selector argument")
+                sys.exit(1)
+            text = agent.get_text(args[0])
+            print(text)
+        
+        elif command == 'get_html':
+            if not args:
+                print("Error: get_html requires selector argument")
+                sys.exit(1)
+            html = agent.get_html(args[0])
+            print(html)
+        
+        elif command == 'get_url':
+            agent._ensure_browser()
+            print(agent.page.url)
+        
+        elif command == 'get_title':
+            agent._ensure_browser()
+            print(agent.page.title())
+        
+        elif command == 'is_visible':
+            if not args:
+                print("Error: is_visible requires selector argument")
+                sys.exit(1)
+            visible = agent.is_visible(args[0])
+            print(f"{'✓ Visible' if visible else '✗ Hidden'}")
+        
+        elif command == 'close':
+            agent.close()
+            print("✓ Browser closed")
+        
+        elif command == 'install':
+            import subprocess
+            print("Installing Playwright browsers...")
+            result = subprocess.run([sys.executable, '-m', 'playwright', 'install'], capture_output=True, text=True)
+            if result.returncode == 0:
+                print("✓ Playwright browsers installed successfully")
+            else:
+                print(f"✗ Installation failed: {result.stderr}")
+                sys.exit(1)
+        
+        else:
+            print(f"Error: Unknown command '{command}'")
+            print("Run 'agent-browser' without arguments to see available commands")
+            sys.exit(1)
+    
+    except Exception as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+    
+    finally:
+        if 'agent' in locals():
+            agent.close()
 
 
 if __name__ == '__main__':
-    cli()
+    main()

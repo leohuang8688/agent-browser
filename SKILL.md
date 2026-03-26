@@ -326,28 +326,52 @@ python3 agent_browser.py wait --text "Thank you"
 
 ### Input Sanitization
 
-All user inputs are sanitized before use:
+All user inputs are sanitized and validated:
 
-- Selectors are validated
-- Text inputs are escaped
-- URLs are validated
-- JavaScript execution requires explicit command
+- **Selectors**: Validated against allowed CSS characters
+- **Text inputs**: Escaped for safe JavaScript interpolation
+- **URLs**: Validated against allowed URL characters
+- **JavaScript**: Requires explicit `eval` command with warnings
+- **File paths**: Restricted to current directory (prevent traversal)
 
 ### Safe Commands
 
-All commands are safe and do not execute arbitrary code:
+All commands are designed to be safe:
 
 - No shell injection possible
 - No command injection possible
-- All inputs are validated
+- All inputs are validated and sanitized
+- Directory traversal prevented for file operations
+
+### Security Warnings
+
+⚠️ **eval command**: Allows arbitrary JavaScript execution
+- Only use with trusted input
+- Security warning is logged on use
+- Input type is validated (must be string)
+
+⚠️ **upload command**: File upload restricted
+- Only files in current directory allowed
+- Directory traversal prevented
+- Invalid paths are skipped with warnings
 
 ### Best Practices
 
-1. Use headless mode for automation
-2. Validate all inputs before use
-3. Use explicit selectors
-4. Close browser when done
-5. Use timeouts for waits
+1. ✅ Use headless mode for automation
+2. ✅ Validate all inputs before use
+3. ✅ Use explicit selectors
+4. ✅ Close browser when done
+5. ✅ Use timeouts for waits
+6. ✅ Run in isolated environment
+7. ✅ Don't use eval with untrusted input
+8. ✅ Keep browser and dependencies updated
+
+### Known Limitations
+
+- Browser automation inherently has security risks
+- JavaScript execution (eval) should be used cautiously
+- File operations are restricted but not foolproof
+- Always run in isolated/sandboxed environment
 
 ---
 

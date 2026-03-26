@@ -198,14 +198,38 @@ class BrowserAgent:
         """
         self._ensure_browser()
         
+        # Validate timeout
+        if not isinstance(timeout, int) or timeout < 0 or timeout > 300000:
+            timeout = 30000
+        
+        # Validate state
+        valid_states = ["visible", "hidden", "attached", "detached"]
+        if state not in valid_states:
+            state = "visible"
+        
+        # Validate load state
+        valid_load_states = ["load", "domcontentloaded", "networkidle", "commit"]
+        if load and load not in valid_load_states:
+            load = None
+        
         if load:
             self.page.wait_for_load_state(load, timeout=timeout)
         elif text:
-            self.page.wait_for_function(f"document.body.innerText.includes('{text}')", timeout=timeout)
+            # Sanitize text - escape quotes and backslashes
+            safe_text = str(text).replace('\\', '\\\\').replace("'", "\\'").replace('"', '\\"')
+            self.page.wait_for_function(f"document.body.innerText.includes(\"{safe_text}\")", timeout=timeout)
         elif url:
-            self.page.wait_for_url(url, timeout=timeout)
+            # Validate URL pattern - only allow safe characters
+            safe_url = str(url)
+            if not all(c in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~:/?#[]@!$&\'()*+,;=%*' for c in safe_url):
+                raise ValueError("Invalid URL pattern")
+            self.page.wait_for_url(safe_url, timeout=timeout)
         elif selector:
-            self.page.wait_for_selector(selector, state=state, timeout=timeout)
+            # Validate CSS selector - basic sanitization
+            safe_selector = str(selector)
+            if not all(c in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.:#[]()=~>*+^$|@! ' for c in safe_selector):
+                raise ValueError("Invalid CSS selector")
+            self.page.wait_for_selector(safe_selector, state=state, timeout=timeout)
     
     def find(self, role: str = None, text: str = None, label: str = None,
              placeholder: str = None, testid: str = None, action: str = None,
@@ -332,14 +356,46 @@ class BrowserAgent:
     
     def upload(self, selector: str, files: List[str]):
         """
-        Upload files
+        Upload files (with security validation)
+        
+        Security: Only allows files in current directory and subdirectories.
+        Prevents directory traversal attacks.
         
         Args:
             selector: CSS selector for file input
             files: List of file paths
         """
         self._ensure_browser()
-        self.page.set_input_files(selector, files)
+        
+        import os
+        from pathlib import Path
+        
+        # Get current working directory
+        cwd = Path.cwd().resolve()
+        
+        # Validate each file path
+        safe_files = []
+        for file_path in files:
+            # Resolve to absolute path
+            resolved = Path(file_path).resolve()
+            
+            # Check if file is within current directory (prevent directory traversal)
+            try:
+                resolved.relative_to(cwd)
+                safe_files.append(str(resolved))
+            except ValueError:
+                # File is outside current directory - skip it
+                import warnings
+                warnings.warn(
+                    f"Skipping file outside current directory: {file_path}",
+                    UserWarning,
+                    stacklevel=2
+                )
+        
+        if not safe_files:
+            raise ValueError("No valid files to upload (all files outside current directory)")
+        
+        self.page.set_input_files(selector, safe_files)
     
     def get_value(self, selector: str) -> str:
         """
@@ -397,7 +453,10 @@ class BrowserAgent:
     
     def eval(self, javascript: str) -> Any:
         """
-        Execute JavaScript
+        Execute JavaScript (with security warnings)
+        
+        WARNING: This method allows arbitrary JavaScript execution.
+        Use with caution and never with untrusted input.
         
         Args:
             javascript: JavaScript code
@@ -406,6 +465,20 @@ class BrowserAgent:
             Evaluation result
         """
         self._ensure_browser()
+        
+        # Security warning - log usage
+        import warnings
+        warnings.warn(
+            "eval() allows arbitrary JavaScript execution. "
+            "Ensure input is from trusted sources only.",
+            UserWarning,
+            stacklevel=2
+        )
+        
+        # Basic validation - must be string
+        if not isinstance(javascript, str):
+            raise TypeError("JavaScript must be a string")
+        
         return self.page.evaluate(javascript)
     
     def close(self):
